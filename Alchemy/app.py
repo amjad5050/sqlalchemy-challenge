@@ -1,7 +1,7 @@
+import datetime as dt
 import numpy as np
-import os
-
 import sqlalchemy
+import pandas as pd
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, func
@@ -12,10 +12,10 @@ from flask import Flask, jsonify
 #################################################
 # Database Setup
 #################################################
-file_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
-db_path = f"sqlite:///{file_dir}/hawaii.sqlite"
-print(db_path)
-engine = create_engine(db_path)
+###file_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
+###db_path = f"sqlite:///{file_dir}/hawaii.sqlite"
+###print(db_path)
+engine = create_engine("sqlite:///hawaii.sqlite")
 
 # reflect an existing database into a new model
 Base = automap_base()
@@ -46,7 +46,7 @@ def homepage():
         f"/api/v1.0/stations"
         f"/api/v1.0/tobs"
         f"/api/v1.0/<start>"
-        f"/api/v1.0/<start>/<start>/<end>"
+        f"/api/v1.0/<start>/<end>"
     )
 
 
@@ -56,18 +56,16 @@ def homepage():
 def prcp():
     # Create our session (link) from Python to the DB
     session = Session(engine)
+    prev_year = dt.date(2017, 8, 23) - dt.timedelta(days=365)    
+    results = session.query(Measurement.date,Measurement.prcp)
+    filter(Measurement.date >= prev_year).all()
 
     
-    results = session.query(Measurement.date,Measurement.prcp).all()
-
-    session.close()
-
-    print(results)
+    ##print(results)
 
     # Convert list of tuples into normal list
-    results = list(np.ravel(results))
-
-    print(results[0:2])
+    results = {date: prcp for date, prcp in prcp
+    }
 
     return jsonify(results)
 
@@ -80,43 +78,62 @@ def stations():
     results = session.query(Station.station).all()
 
     session.close()
-
+    stations = list(np.ravel(results))
     return jsonify(results)
     
 @app.route("/api/v1.0/tobs")
 def tobs():
     # Create our session (link) from Python to the DB
     session = Session(engine)
+    prev_year = dt.date(2017, 8, 23) - dt.timedelta(days=365)
 
-    results = session.query(Measurement.tobs).all()
+
+    results = session.query(Measurement.tobs).\
+        filter(Measurement.station == 'USC00519281').\
+        filter(Measurement.date >= prev_year).\
+        all()
 
     session.close()
+    temps = list(np.ravel(results))
 
-    return jsonify(results)
+    return jsonify(temps=temps)
 
 @app.route("/api/v1.0/<start>")
-def tobs():
+def start():
     # Create our session (link) from Python to the DB
     session = Session(engine)
+    start = dt.datetime.strptime(start, "%m%d%Y")
+    results= session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).filter(Measurement.date >= start)
+    start = dt.datetime.strptime(start, "%m%d%Y")
+    results1 = session.query(results).\
+              filter(Measurement.date >= start).\
+              all()
 
-    results = session.query(most_active=(session.query(func.min(Measurement.tobs),func.max(Measurement.tobs),func.avg(Measurement.tobs))).all()
-    
     session.close()
+
+    temps = list(np.ravel(results1))
+    return jsonify(temps)
+
+    session.close()
+    return jsonify(results)
+
 
 
 @app.route("/api/v1.0/<start>/<end>")
-def tobs():
+def end():
     # Create our session (link) from Python to the DB
     session = Session(engine)
+    start = dt.datetime.strptime(start, "%m%d%Y")
+    end = dt.datetime.strptime(end, "%m%d%Y")
 
-    results = session.query(most_active=(session.query(func.min(Measurement.tobs),func.max(Measurement.tobs),func.avg(Measurement.tobs))
-    ).all()
+    results= session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).filter(Measurement.date >= start).filter(Measurement.date <= stop).all()
+    filter(Measurement.date >= start).\
+    filter(Measurement.date <= end).\
+    all()
 
     session.close()
-
-
-  
-    
+    temps = list(np.ravel(results))
+    return jsonify(temps=temps)
 
 
 
